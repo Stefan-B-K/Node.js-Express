@@ -1,8 +1,9 @@
 const { MongoClient, ObjectId } = require('mongodb')
-const sessions = require('../data/sessions.json')
 const chalk = require('chalk')
-const { mySQL } = require('./mysql.js')
 const debug = require('debug')('app:mongo')
+
+const sessions = require('../data/sessions.json')
+const speakerService = require('./speakerService.js')
 
 
 const mongoDB = new MongoClient(`mongodb://${process.env.HOST}:27017`, {
@@ -28,6 +29,7 @@ const sessionsCollection = db.collection('sessions');
         debug(chalk.red('Error checking/uploading initial json data'))
     } finally {
         await mongoDB.close()
+        debug(chalk.blue('Initial connection to MongoDB closed'))
     }
 }())
 
@@ -39,6 +41,9 @@ const existingUserMongo = async (username) => {
     } catch (error) {
         debug(chalk.red(error.message))
         return {}
+    } finally {
+        await mongoDB.close()
+        debug(chalk.blue('Connection to MongoDB closed'))
     }
 }
 
@@ -53,8 +58,45 @@ const signUpWithMongoDB = async (user) => {
     } catch (error) {
         debug(chalk.red(error.message))
         return { OK: false }
+    } finally {
+        await mongoDB.close()
+        debug(chalk.blue('Connection to MongoDB closed'))
     }
 }
 
-module.exports = { mongoDB, db, sessionsCollection, ObjectId, existingUserMongo, signUpWithMongoDB }
+const getSessions = async () => {
+    try {
+        await mongoDB.connect()
+        debug(chalk.blue('Connected to MongoDB'))
+
+        return await sessionsCollection.find().toArray()
+    } catch (error) {
+        debug(chalk.red(error.stack))
+        return null
+    } finally {
+        await mongoDB.close()
+        debug(chalk.blue('Connection to MongoDB closed'))
+    }
+}
+
+const getOneSession = async (id) => {
+    try {
+        await mongoDB.connect()
+        debug(chalk.blue('Connected to MongoDB'))
+
+        const session = await sessionsCollection.findOne({ _id: new ObjectId(id) })
+        const { data } = await speakerService.getSpeakerById(session.speakers[0].id)            // speakerService
+        session.speaker = data
+
+        return session
+    } catch (error) {
+        debug(chalk.red(error.stack))
+        return null
+    } finally {
+        await mongoDB.close()
+        debug(chalk.blue('Connection to MongoDB closed'))
+    }
+}
+
+module.exports = { existingUserMongo, signUpWithMongoDB, getSessions, getOneSession }
 

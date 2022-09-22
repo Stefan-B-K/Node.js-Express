@@ -10,7 +10,6 @@ const sessionsMysqlRouter = require('./src/routers/sessionsMysqlRouter.js')
 const authRouter = require('./src/routers/authRouter.js')
 
 
-const PORT = process.env.PORT || 3000
 const app = express()
 
 app.use(morgan('tiny'))                 // 'combined'
@@ -25,11 +24,11 @@ app.set('views', './src/views')
 app.set('view engine', 'ejs')
 
 app.get('/', (request, response) => {
-    response.render('index', { title: 'Globomantics'})
+    response.render('index', { title: 'Globomantics' })
 })
 
 app.use('/sessions1', sessionsMongoRouter)
 app.use('/sessions2', sessionsMysqlRouter)
 app.use('/auth', authRouter)
 
-app.listen(PORT, () => debug(chalk.greenBright(`Running EXPRESS on port ${PORT}...`)))
+app.listen(3003, () => debug(chalk.greenBright('Running EXPRESS on port 3003...')))

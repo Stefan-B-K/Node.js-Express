@@ -1,8 +1,10 @@
 const mysql = require('mysql2/promise')
 const chalk = require('chalk')
 const debug = require('debug')('app:mysql')
+
 const sessions = require('../data/sessions.json')
-const { mongoDB, db } = require('./mongo.js')
+const speakerService = require('./speakerService.js')
+
 
 const keys = Object.keys(sessions[0]).map(key => key.toString())
 
@@ -51,9 +53,7 @@ const mySQL = async function init () {
 
 const existingUserMySQL = async (username) => {
     try {
-        const connection = await mySQL
-        debug(chalk.cyanBright('Connected to MySQL'))
-        await connection.query('USE globomantics')
+        const connection = await connectToDB()
         return (await connection.query('SELECT * FROM users WHERE username=?', [username]))[0][0]
     } catch (error) {
         debug(chalk.red(error.message))
@@ -65,13 +65,11 @@ const signUpWithMySQL = async (user) => {
     const { username, password, database } = user
 
     try {
-        const connection = await mySQL
-        debug(chalk.cyanBright('Connected to MySQL'))
-
-        await connection.query('USE globomantics')
+        const connection = await connectToDB()
         const insertUser = 'INSERT INTO users (`username`, `password`, `db_type`) VALUES (?, ?, ?)'
         const result = (await connection.query(insertUser, [username, password, database]))[0]
         debug(chalk.blue('User created'))
+
         return { OK: true, user: { ...user, id: result.insertId } }
     } catch (error) {
         debug(chalk.red(error.message))
@@ -79,6 +77,38 @@ const signUpWithMySQL = async (user) => {
     }
 }
 
-module.exports = { mySQL, existingUserMySQL, signUpWithMySQL }
+const getSessions = async () => {
+    try {
+        const connection = await connectToDB()
+        return (await connection.execute('SELECT * FROM sessions'))[0]
+    } catch (error) {
+        debug(chalk.red(error.stack))
+        return null
+    }
+}
+
+const getOneSession =async (id) => {
+    try {
+        const connection = await connectToDB()
+        const session = (await connection.query('SELECT * FROM sessions WHERE id=?', [id]))[0][0]
+        const { data } = await speakerService.getSpeakerById(session.speakers[0].id)
+        session.speaker = data
+
+       return session
+    } catch (error) {
+        debug(chalk.red(error.stack))
+        return null
+    }
+}
+
+async  function connectToDB () {
+    const connection = await mySQL
+    debug(chalk.cyanBright('Connected to MySQL'))
+    await connection.query('USE globomantics')
+
+    return connection
+}
+
+module.exports = { existingUserMySQL, signUpWithMySQL, getSessions, getOneSession }
 
 
